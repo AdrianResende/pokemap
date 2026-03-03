@@ -35,7 +35,7 @@ export default function DetailScreen({ route, navigation }: any) {
       Animated.timing(heroAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
       Animated.spring(spriteAnim, { toValue: 1, friction: 6, useNativeDriver: true }),
     ]).start();
-  }, []);
+  }, [heroAnim, spriteAnim]);
 
   const stats = [pokemon.hp, pokemon.atk, pokemon.def, pokemon.spa, pokemon.spd, pokemon.spe];
 

@@ -34,7 +34,7 @@ function FloatingMarker({
         Animated.timing(anim, { toValue: 0,  duration: 1500, useNativeDriver: true }),
       ])
     ).start();
-  }, []);
+  }, [anim, delay]);
 
   return (
     <Animated.View
@@ -65,7 +65,7 @@ function RadarRing({ delay }: { delay: number }) {
         Animated.timing(anim, { toValue: 0, duration: 0,    useNativeDriver: true }),
       ])
     ).start();
-  }, []);
+  }, [anim, delay]);
 
   const scale  = anim.interpolate({ inputRange: [0, 1], outputRange: [0.3, 3] });
   const opacity= anim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.6, 0.3, 0] });

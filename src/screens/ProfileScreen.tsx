@@ -33,7 +33,7 @@ export default function ProfileScreen({ navigation }: any) {
 
   useEffect(() => {
     Animated.timing(xpAnim, { toValue: 0.68, duration: 1000, delay: 300, useNativeDriver: false }).start();
-  }, []);
+  }, [xpAnim]);
 
   return (
     <View style={styles.container}>
