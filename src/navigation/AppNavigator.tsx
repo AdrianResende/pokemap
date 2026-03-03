@@ -1,13 +1,13 @@
 import React from 'react';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createStackNavigator, TransitionPresets } from '@react-navigation/stack';
 import { Colors } from '../theme';
 import MapScreen     from '../screens/MapScreen';
 import DexScreen     from '../screens/DexScreen';
 import DetailScreen  from '../screens/DetailScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 
-const Stack = createNativeStackNavigator();
+const Stack = createStackNavigator();
 
 const MyTheme = {
   ...DefaultTheme,
@@ -20,13 +20,13 @@ export default function AppNavigator() {
       <Stack.Navigator
         screenOptions={{
           headerShown: false,
-          animation: 'slide_from_right',
-          contentStyle: { backgroundColor: Colors.bg },
+          ...TransitionPresets.SlideFromRightIOS,
+          cardStyle: { backgroundColor: Colors.bg },
         }}
       >
         <Stack.Screen name="Map"     component={MapScreen}     />
         <Stack.Screen name="Dex"     component={DexScreen}     />
-        <Stack.Screen name="Detail"  component={DetailScreen}  options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="Detail"  component={DetailScreen}  options={{ ...TransitionPresets.ModalSlideFromBottomIOS }} />
         <Stack.Screen name="Profile" component={ProfileScreen} />
       </Stack.Navigator>
     </NavigationContainer>

@@ -1,20 +1,42 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   View, Text, StyleSheet, Image, TouchableOpacity,
   ScrollView, Animated, Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Location from 'expo-location';
 import { Colors, SPRITE_URL, POKEMON_LIST, TYPE_COLORS } from '../theme';
 import { TypeBadge } from '../components';
 
 const { width } = Dimensions.get('window');
 
+type GeoPoint = { latitude: number; longitude: number };
+
 const MAP_POKEMON = [
-  { id: 25,  top: '46%', left: '42%', active: true  },
-  { id: 7,   top: '26%', left: '18%', active: false },
-  { id: 4,   top: '26%', left: '68%', active: false },
-  { id: 1,   top: '65%', left: '76%', active: false },
+  { id: 25, top: '46%', left: '42%', active: true,  latOffset: 0.0008, lonOffset: 0.0004 },
+  { id: 7,  top: '26%', left: '18%', active: false, latOffset: -0.0011, lonOffset: -0.0007 },
+  { id: 4,  top: '26%', left: '68%', active: false, latOffset: -0.0006, lonOffset: 0.0013 },
+  { id: 1,  top: '65%', left: '76%', active: false, latOffset: 0.0012, lonOffset: 0.0011 },
 ];
+
+const WEB_DEFAULT_LOCATION: GeoPoint = {
+  latitude: -23.55052,
+  longitude: -46.633308,
+};
+
+function distanceMeters(a: GeoPoint, b: GeoPoint) {
+  const toRad = (v: number) => (v * Math.PI) / 180;
+  const R = 6371000;
+  const dLat = toRad(b.latitude - a.latitude);
+  const dLon = toRad(b.longitude - a.longitude);
+  const lat1 = toRad(a.latitude);
+  const lat2 = toRad(b.latitude);
+  const s =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2)
+    + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
+  return R * c;
+}
 
 function FloatingMarker({
   pokemon,
@@ -78,28 +100,109 @@ function RadarRing({ delay }: { delay: number }) {
 }
 
 const FILTERS = ['⚡ Todos', '🔥 Fogo', '💧 Água', '🌿 Planta'];
-const pika = POKEMON_LIST[0];
 
 export default function MapScreen({ navigation }: any) {
   const [activeFilter, setActiveFilter] = React.useState(0);
+  const [status, setStatus] = React.useState<'loading' | 'ready' | 'denied'>('loading');
+  const [userLocation, setUserLocation] = React.useState<GeoPoint | null>(null);
+  const [selectedPokemonId, setSelectedPokemonId] = React.useState(25);
+
+  const loadUserLocation = useCallback(async () => {
+    try {
+      setStatus('loading');
+      const { status: permission } = await Location.requestForegroundPermissionsAsync();
+      if (permission !== 'granted') {
+        setStatus('denied');
+        return;
+      }
+
+      const current = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      setUserLocation({
+        latitude: current.coords.latitude,
+        longitude: current.coords.longitude,
+      });
+      setStatus('ready');
+    } catch {
+      setStatus('denied');
+    }
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    let subscription: Location.LocationSubscription | null = null;
+
+    (async () => {
+      await loadUserLocation();
+
+      const { status: permission } = await Location.getForegroundPermissionsAsync();
+      if (permission !== 'granted') return;
+
+      subscription = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.Balanced,
+          distanceInterval: 8,
+          timeInterval: 5000,
+        },
+        (loc) => {
+          if (!mounted) return;
+          setUserLocation({
+            latitude: loc.coords.latitude,
+            longitude: loc.coords.longitude,
+          });
+          setStatus('ready');
+        }
+      );
+    })();
+
+    return () => {
+      mounted = false;
+      subscription?.remove();
+    };
+  }, [loadUserLocation]);
+
+  const locationAnchor = userLocation ?? WEB_DEFAULT_LOCATION;
+
+  const geoPokemon = useMemo(
+    () => MAP_POKEMON.map((p) => ({
+      ...p,
+      coordinate: {
+        latitude: locationAnchor.latitude + p.latOffset,
+        longitude: locationAnchor.longitude + p.lonOffset,
+      },
+    })),
+    [locationAnchor.latitude, locationAnchor.longitude]
+  );
+
+  const selectedEntry = geoPokemon.find((p) => p.id === selectedPokemonId) ?? geoPokemon[0];
+  const selectedPokemon = POKEMON_LIST.find((p) => p.id === selectedEntry.id) ?? POKEMON_LIST[0];
+
+  const selectedDistance = userLocation
+    ? `${Math.round(distanceMeters(userLocation, selectedEntry.coordinate))}m`
+    : '—';
+
+  const locationText =
+    status === 'denied'
+      ? 'Permissão de localização negada'
+      : userLocation
+        ? `${userLocation.latitude.toFixed(5)}, ${userLocation.longitude.toFixed(5)}`
+        : 'Obtendo localização...';
 
   return (
     <View style={styles.container}>
-      {/* ── Fake Map Background ── */}
+      {/* ── Map background ── */}
       <View style={styles.mapBg}>
-        {/* Grid */}
         {Array.from({ length: 12 }).map((_, i) => (
           <View key={`h${i}`} style={[styles.gridLineH, { top: i * 68 }]} />
         ))}
         {Array.from({ length: 10 }).map((_, i) => (
           <View key={`v${i}`} style={[styles.gridLineV, { left: i * 42 }]} />
         ))}
-        {/* Roads */}
         <View style={[styles.roadH, { top: '35%' }]} />
         <View style={[styles.roadH, { top: '62%' }]} />
         <View style={[styles.roadV, { left: '27%' }]} />
         <View style={[styles.roadV, { left: '62%' }]} />
-        {/* Blocks */}
         <View style={[styles.block, { top: '15%', left: '30%', width: 90, height: 70 }]} />
         <View style={[styles.block, { top: '15%', left: '64%', width: 60, height: 70 }]} />
         <View style={[styles.block, { top: '38%', left: '30%', width: 90, height: 60 }]} />
@@ -109,20 +212,21 @@ export default function MapScreen({ navigation }: any) {
         <View style={[styles.block, { top: '65%', left: '30%', width: 90, height: 65 }]} />
       </View>
 
-      {/* ── Radar (around Pikachu) ── */}
       <View style={styles.radarCenter}>
         <RadarRing delay={0} />
         <RadarRing delay={800} />
         <RadarRing delay={1600} />
       </View>
 
-      {/* ── Pokémon Markers ── */}
-      {MAP_POKEMON.map((p, i) => (
+      {geoPokemon.map((p, i) => (
         <FloatingMarker
           key={p.id}
           pokemon={p}
           delay={i * 400}
-          onPress={() => navigation.navigate('Detail', { pokemonId: p.id })}
+          onPress={() => {
+            setSelectedPokemonId(p.id);
+            navigation.navigate('Detail', { pokemonId: p.id });
+          }}
         />
       ))}
 
@@ -131,7 +235,7 @@ export default function MapScreen({ navigation }: any) {
         {/* Search */}
         <View style={styles.searchBar}>
           <Text style={styles.searchIcon}>🔍</Text>
-          <Text style={styles.searchText}>Pesquisar área...</Text>
+          <Text style={styles.searchText}>{locationText}</Text>
         </View>
 
         {/* Filter Chips */}
@@ -154,7 +258,7 @@ export default function MapScreen({ navigation }: any) {
 
       {/* ── FABs ── */}
       <View style={styles.fabs}>
-        <TouchableOpacity style={[styles.fab, { backgroundColor: Colors.yellow }]}>
+        <TouchableOpacity style={[styles.fab, { backgroundColor: Colors.yellow }]} onPress={loadUserLocation}>
           <Text>📍</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.fab}><Text style={styles.fabText}>＋</Text></TouchableOpacity>
@@ -166,19 +270,19 @@ export default function MapScreen({ navigation }: any) {
         <View style={styles.sheetHandle} />
         <View style={styles.sheetHeader}>
           <View style={styles.sheetAvatar}>
-            <Image source={{ uri: SPRITE_URL(pika.id) }} style={styles.sheetSprite} />
+            <Image source={{ uri: SPRITE_URL(selectedPokemon.id) }} style={styles.sheetSprite} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.sheetNum}>#{String(pika.id).padStart(3, '0')}</Text>
-            <Text style={styles.sheetName}>{pika.name}</Text>
+            <Text style={styles.sheetNum}>#{String(selectedPokemon.id).padStart(3, '0')}</Text>
+            <Text style={styles.sheetName}>{selectedPokemon.name}</Text>
             <View style={{ flexDirection: 'row', gap: 6, marginTop: 6 }}>
-              {pika.types.map(t => <TypeBadge key={t} type={t} />)}
+              {selectedPokemon.types.map((t) => <TypeBadge key={t} type={t} />)}
             </View>
           </View>
         </View>
 
         <View style={styles.statsRow}>
-          {[['6,2 kg', 'Peso'], ['0,4 m', 'Altura'], ['320m', 'Distância']].map(([val, label]) => (
+          {[[selectedPokemon.weight, 'Peso'], [selectedPokemon.height, 'Altura'], [selectedDistance, 'Distância']].map(([val, label]) => (
             <View key={label} style={styles.statBox}>
               <Text style={styles.statBoxVal}>{val}</Text>
               <Text style={styles.statBoxLabel}>{label}</Text>
@@ -186,7 +290,10 @@ export default function MapScreen({ navigation }: any) {
           ))}
         </View>
 
-        <TouchableOpacity style={styles.catchBtn}>
+        <TouchableOpacity
+          style={styles.catchBtn}
+          onPress={() => navigation.navigate('Detail', { pokemonId: selectedPokemon.id })}
+        >
           <Text style={styles.catchBtnText}>⚡ Capturar Pokémon</Text>
         </TouchableOpacity>
       </View>

@@ -2,8 +2,13 @@
   "compilerOptions": {
     "target": "ES2020",
     "jsx": "react-native",
-    "lib": ["ES2020"],
-    "types": ["react", "react-native"],
+    "lib": [
+      "ES2020"
+    ],
+    "types": [
+      "react",
+      "react-native"
+    ],
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -15,6 +20,11 @@
     "sourceMap": true,
     "noImplicitAny": false
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules"]
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules"
+  ],
+  "extends": "expo/tsconfig.base"
 }
