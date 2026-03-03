@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "PokéMap",
+    "slug": "pokemap",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#0F0F1A"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.pokemap.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0F0F1A"
+      },
+      "package": "com.pokemap.app"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "bdbfb56b-14a0-424c-8d98-eca9c3e4e995"
+      }
+    },
+    "owner": "pokemap"
+  }
+}
